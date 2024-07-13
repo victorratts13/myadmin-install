@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout Myadmin - Install</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+
+<body>
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-md-6 offset-md-3">
+                <h3 class="text-center"><i class="fa-solid fa-download"></i> Selecione versão & Canal</h3>
+                <form id="installForm">
+                    <div class="form-group">
+                        <select class="form-select form-select-lg mb-3 channels" aria-label="channel" required
+                            name="channel">
+                            <!-- Canais -->
+                        </select>
+                    </div>
+                    <div class="form-group versions">
+
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block col-12 button-animate">Instalar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script>
+
+        async function CheckIstalationStatus() {
+            try {
+                await $.get(window.location.href);
+                return true;
+            } catch (e) {
+                CheckIstalationStatus();
+            }
+        }
+
+        $(document).ready(async function () {
+            var metainfo = await $.get('/install.php');
+            var info = JSON.parse(metainfo);
+            $('.channels').append('<option selected>Selecionar canal</option>')
+            for (var key of Object.keys(info)) {
+                $('.channels').append(`
+                    <option value="${key}">${key}</option>
+                `)
+            }
+
+            $('.channels').on('change', () => {
+                var options = "";
+                var ch = $('select[name="channel"]').val();
+                var versionlist = info[ch];
+
+                var appends = versionlist.map(mp => {
+                    return `<option value="${mp}">${mp}</option>`;
+                });
+
+                for (var opt of appends) {
+                    options += opt;
+                }
+
+                $('.versions').html(`
+                    <select class="form-select form-select-lg mb-3 channel-version" aria-label="version" required name="version">
+                        ${options}
+                    </select>
+                `);
+            })
+
+            $('#installForm').on('submit', function (event) {
+                event.preventDefault();
+                var version = $('select[name="version"]').val();
+                var channel = $('select[name="channel"]').val();
+                $('.button-animate').html('<i class="fa-solid fa-spinner fa-spin"></i> Instalando...').attr('disabled', true);
+                $.ajax({
+                    url: 'install.php',
+                    type: 'POST',
+                    data: { version: version, channel: channel },
+                    success: async function (response) {
+                        response = JSON.parse(response);
+                        if (response.status === 'success') {
+                            $('.button-animate').html('<i class="fa-solid fa-spinner fa-spin"></i> Verificando instalação...')
+                                .removeClass('btn-primary')
+                                .addClass('btn-secondary')
+                                .attr('disabled', true);
+                            if (CheckIstalationStatus()) {
+                                window.location.href = '/myadmin';
+                            }
+                        } else {
+                            alert('Erro na instalação: ' + response.message);
+                        }
+                    },
+                    error: function (xhr) {
+                        alert('Erro na requisição: ' + xhr.responseText);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>
